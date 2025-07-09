@@ -8,7 +8,11 @@ import jakarta.inject.Inject;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 
 @ApplicationScoped
 public class WalletService {
@@ -16,9 +20,12 @@ public class WalletService {
     @Inject
     private WalletRepository walletRepository;
 
+    private final Map<Long, Lock> locks = new ConcurrentHashMap<>();
+
     public Wallet createWallet(Long userId) {
         Wallet wallet = new Wallet(userId);
         walletRepository.save(wallet);
+        locks.put(userId, new ReentrantLock());
         return wallet;
     }
 
@@ -35,24 +42,58 @@ public class WalletService {
     }
 
     public void deposit(Long userId, BigDecimal amount) {
-        Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Wallet not found"));
-        wallet.setBalance(wallet.getBalance().add(amount));
-        wallet.addTransaction(new Transaction(LocalDateTime.now(), amount));
-        walletRepository.save(wallet);
+        Lock lock = locks.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Wallet not found"));
+            wallet.setBalance(wallet.getBalance().add(amount));
+            wallet.addTransaction(new Transaction(LocalDateTime.now(), amount));
+            walletRepository.save(wallet);
+        } finally {
+            lock.unlock();
+        }
     }
 
     public void withdraw(Long userId, BigDecimal amount) {
-        Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Wallet not found"));
-        if (wallet.getBalance().compareTo(amount) < 0) {
-            throw new RuntimeException("Insufficient funds");
+        Lock lock = locks.computeIfAbsent(userId, k -> new ReentrantLock());
+        lock.lock();
+        try {
+            Wallet wallet = walletRepository.findByUserId(userId).orElseThrow(() -> new RuntimeException("Wallet not found"));
+            if (wallet.getBalance().compareTo(amount) < 0) {
+                throw new RuntimeException("Insufficient funds");
+            }
+            wallet.setBalance(wallet.getBalance().subtract(amount));
+            wallet.addTransaction(new Transaction(LocalDateTime.now(), amount.negate()));
+            walletRepository.save(wallet);
+        } finally {
+            lock.unlock();
         }
-        wallet.setBalance(wallet.getBalance().subtract(amount));
-        wallet.addTransaction(new Transaction(LocalDateTime.now(), amount.negate()));
-        walletRepository.save(wallet);
     }
 
     public void transfer(Long fromUserId, Long toUserId, BigDecimal amount) {
-        withdraw(fromUserId, amount);
-        deposit(toUserId, amount);
+        Lock fromLock = locks.computeIfAbsent(fromUserId, k -> new ReentrantLock());
+        Lock toLock = locks.computeIfAbsent(toUserId, k -> new ReentrantLock());
+
+        // to avoid deadlocks, always lock in the same order
+        if (fromUserId < toUserId) {
+            fromLock.lock();
+            toLock.lock();
+        } else {
+            toLock.lock();
+            fromLock.lock();
+        }
+
+        try {
+            withdraw(fromUserId, amount);
+            deposit(toUserId, amount);
+        } finally {
+            if (fromUserId < toUserId) {
+                toLock.unlock();
+                fromLock.unlock();
+            } else {
+                fromLock.unlock();
+                toLock.unlock();
+            }
+        }
     }
 }
