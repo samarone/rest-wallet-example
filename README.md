@@ -2,6 +2,10 @@
 
 This is a REST API project for a digital wallet, developed with Java and Helidon. It allows creating wallets, checking balances (current and historical), depositing, withdrawing, and transferring funds between users.
 
+## Disclaimer
+
+For a detailed explanation of the design choices, how the implementation meets functional and non-functional requirements, and any compromises or trade-offs made, please refer to the [DISCLAIMER.md](DISCLAIMER.md) file.
+
 ## Build and run
 
 
