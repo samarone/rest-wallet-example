@@ -1,0 +1,37 @@
+kind: Service
+apiVersion: v1
+metadata:
+  name: samarone-wallet
+  labels:
+    app: samarone-wallet
+spec:
+  type: ClusterIP
+  selector:
+    app: samarone-wallet
+  ports:
+    - name: tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: samarone-wallet
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: samarone-wallet
+  template:
+    metadata:
+      labels:
+        app: samarone-wallet
+        version: v1
+    spec:
+      containers:
+      - name: samarone-wallet
+        image: samarone-wallet
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
