@@ -1,6 +1,6 @@
 # samarone-wallet
 
-Sample Helidon MP project that includes multiple REST operations.
+This is a REST API project for a digital wallet, developed with Java and Helidon. It allows creating wallets, checking balances (current and historical), depositing, withdrawing, and transferring funds between users.
 
 ## Build and run
 
