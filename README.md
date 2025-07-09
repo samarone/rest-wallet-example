@@ -13,25 +13,63 @@ java -jar target/samarone-wallet.jar
 
 ## Exercise the application
 
-Basic:
+### Create Wallets
+First, let's create two wallets for user `1` and user `2`.
+
+**Create a wallet for user 1:**
+```bash
+curl -X POST http://localhost:8080/wallets/1
 ```
-curl -X GET http://localhost:8080/simple-greet
-Hello World!
+
+**Create a wallet for user 2:**
+```bash
+curl -X POST http://localhost:8080/wallets/2
 ```
 
+### Deposit Funds
+Now, let's deposit `100` into user `1`'s wallet.
 
-JSON:
+```bash
+curl -X POST -H "Content-Type: application/json" -d "100" http://localhost:8080/wallets/1/deposit
 ```
-curl -X GET http://localhost:8080/greet
-{"message":"Hello World!"}
 
-curl -X GET http://localhost:8080/greet/Joe
-{"message":"Hello Joe!"}
+### Retrieve Balance
+Check the balance for user `1`. It should be `100`.
 
-curl -X PUT -H "Content-Type: application/json" -d '{"greeting" : "Hola"}' http://localhost:8080/greet/greeting
+```bash
+curl -X GET http://localhost:8080/wallets/1/balance
+```
 
-curl -X GET http://localhost:8080/greet/Jose
-{"message":"Hola Jose!"}
+### Withdraw Funds
+Withdraw `30` from user `1`'s wallet.
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d "30" http://localhost:8080/wallets/1/withdraw
+```
+After this, the balance for user `1` will be `70`. You can verify by calling the balance endpoint again.
+
+### Transfer Funds
+Transfer `20` from user `1` to user `2`.
+
+```bash
+curl -X POST -H "Content-Type: application/json" -d "20" "http://localhost:8080/wallets/transfer?fromUserId=1&toUserId=2"
+```
+After the transfer:
+*   User `1`'s balance will be `50`.
+*   User `2`'s balance will be `20`.
+
+You can check their balances:
+```bash
+curl -X GET http://localhost:8080/wallets/1/balance
+curl -X GET http://localhost:8080/wallets/2/balance
+```
+
+### Retrieve Historical Balance
+To get the balance at a specific point in time, you need to provide a timestamp in ISO-8601 format. For example, to see user `1`'s balance before any transactions, you could use a timestamp from before you started.
+
+```bash
+# Replace {timestamp} with a valid ISO-8601 timestamp, e.g., 2025-07-09T12:50:00
+curl -X GET "http://localhost:8080/wallets/1/balance/historical?timestamp={timestamp}"
 ```
 
 
@@ -155,4 +193,3 @@ mvn package -Pjlink-image -Djlink.image.addClassDataSharingArchive=false
 ```
 
 For more information on available configuration options see the helidon-maven-plugin documentation.
-                                
